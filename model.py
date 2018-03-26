@@ -1,8 +1,5 @@
-from bs4 import BeautifulSoup as Soup
 from selenium.common.exceptions import NoSuchElementException
-
-import re
-import time
+import re, time
 
 
 class Brand:
@@ -33,10 +30,7 @@ class CU(Brand):
 
         for item in soup.select('div.prodListWrap > ul > li'):
             name = item.select('p.prodName')[0].get_text().strip()
-            name = name if name != '' else None
-
-            price = re.sub(r'([,원])', '', item.select('p.prodPrice')[0].get_text().strip())
-            price = int(price) if price != '' else None
+            price = int(re.sub(r'([,원])', '', item.select('p.prodPrice')[0].get_text().strip()))
 
             product = Product(name, price)
             products.append(product.__dict__)
@@ -58,10 +52,7 @@ class CU(Brand):
 
             for row in store_rows:
                 name = row.select('span.name')[0].get_text().strip()
-                name = name if name != '' else None
-
                 tel = row.select('span.tel')[0].get_text().strip()
-                tel = tel if tel != '' else None
 
                 address = row.select('div.detail_info > address')[0].get_text().split(', ')[0].strip()
                 address = address if address != '' else None
@@ -87,11 +78,16 @@ class SevenEleven(Brand):
 
         while True:
             try:
-                more_prod_btn = browser.driver.find_element_by_class_name('btn_more')
+                # find link for load more products
+                more_prod_link = browser.driver.find_element_by_css_selector('li.btn_more > a')
 
-                if more_prod_btn is not None:
-                    browser.execute("fncMore('')", 5)
+                # execute more products script from link
+                more_prod_script = more_prod_link.get_attribute('href').split(':')[1].strip()
 
+                # execute script and delay 5 seconds
+                browser.execute(more_prod_script, 5)
+
+            # find link and execute script until occur NoSuchElementException
             except NoSuchElementException:
                 break
 
@@ -126,10 +122,7 @@ class GS25(Brand):
 
             for box in boxes:
                 name = box.select('p.tit')[0].get_text().strip()
-                name = name if name != '' else None
-
                 price = re.sub(r'([,원])', '', box.select('span.cost')[0].get_text().strip())
-                price = int(price) if price != '' else None
 
                 product = Product(name, price)
                 products.append(product.__dict__)
@@ -154,10 +147,7 @@ class GS25(Brand):
 
             for row in rows:
                 name = row.select('a.st_name')[0].get_text().strip()
-                name = name if name != '' else None
-
                 address = re.split(r"[,(]", row.select('a.st_address')[0].get_text().strip())[0]
-                address = address if address != '' else None
 
                 store = CStore(name, None, address)
                 print(store.__dict__)
