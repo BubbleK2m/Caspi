@@ -22,9 +22,7 @@ class Browser:
 
     def load(self, delay=0):
         time.sleep(delay)
-
-        soup = Soup(self.driver.page_source, 'html.parser')
-        return soup
+        return Soup(self.driver.page_source, 'html.parser')
 
     def execute(self, script, delay=0):
         self.driver.execute_script(script)

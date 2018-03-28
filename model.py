@@ -8,6 +8,20 @@ class Brand:
         self.url = url
 
 
+class CStore:
+    def __init__(self, name, tel, address):
+        self.name = name
+        self.tel = tel
+        self.address = address
+
+
+class Product:
+    def __init__(self, name=None, price=None, flag=None):
+        self.name = name
+        self.price = price
+        self.flag = flag
+
+
 class CU(Brand):
     def __init__(self):
         super(CU, self).__init__('CU', 'http://cu.bgfretail.com')
@@ -18,7 +32,7 @@ class CU(Brand):
 
         while True:
             try:
-                prod_list_btn = browser.find_element_by_class_name('prodListBtn')
+                prod_list_btn = browser.driver.find_element_by_class_name('prodListBtn')
 
                 if prod_list_btn is not None:
                     browser.execute('nextPage(1)', 3)
@@ -52,7 +66,9 @@ class CU(Brand):
 
             for row in store_rows:
                 name = row.select('span.name')[0].get_text().strip()
+
                 tel = row.select('span.tel')[0].get_text().strip()
+                tel = tel if tel != '' else None
 
                 address = row.select('div.detail_info > address')[0].get_text().split(', ')[0].strip()
                 address = address if address != '' else None
@@ -73,7 +89,7 @@ class SevenEleven(Brand):
         super(SevenEleven, self).__init__('7 Eleven', 'http://www.7-eleven.co.kr')
 
     def get_products(self, browser, kind):
-        browser.move('{0}/product/{1}List.asp'.format(self.url, kind), 5)
+        browser.move('{0}/product/{1}List.asp'.format(self.url, kind), 3)
         products = list()
 
         while True:
@@ -85,7 +101,7 @@ class SevenEleven(Brand):
                 more_prod_script = more_prod_link.get_attribute('href').split(':')[1].strip()
 
                 # execute script and delay 5 seconds
-                browser.execute(more_prod_script, 5)
+                browser.execute(more_prod_script, 3)
 
             # find link and execute script until occur NoSuchElementException
             except NoSuchElementException:
@@ -107,8 +123,8 @@ class GS25(Brand):
     def __init__(self):
         super(GS25, self).__init__('GS25', 'http://gs25.gsretail.com/gscvs/ko')
 
-    def get_products(self, browser, kind):
-        browser.move('{0}/products/{1}'.format(self.url, kind), 3)
+    def get_youus_products(self, browser, kind):
+        browser.move('{0}/products/youus-{1}'.format(self.url, kind), 3)
 
         products = list()
         page = 1
@@ -122,13 +138,48 @@ class GS25(Brand):
 
             for box in boxes:
                 name = box.select('p.tit')[0].get_text().strip()
+
                 price = re.sub(r'([,원])', '', box.select('span.cost')[0].get_text().strip())
+                price = int(price) if price else None
 
                 product = Product(name, price)
                 products.append(product.__dict__)
 
             page += 1
             browser.execute('vagelistCommonFn.movePage({0})'.format(page), 3)
+
+        return products
+
+    def get_event_products(self, browser, kind):
+        browser.move('{0}/products/event-goods'.format(self.url), 3)
+
+        page = 1
+        products = list()
+
+        tab = browser.driver.find_element_by_css_selector('#{0}'.format(kind))
+        tab.click()
+
+        while True:
+            soup = browser.load(3)
+            boxes = soup.select('div.prod_box')[3:]
+
+            if len(boxes) == 0:
+                break
+
+            for box in boxes:
+                name = box.select('p.tit')[0].get_text().strip()
+
+                price = re.sub(r'([,원])', '', box.select('span.cost')[0].get_text().strip())
+                price = int(price) if price else None
+
+                flag = box.select('div.flag_box')[0].get_text().strip()
+                flag = flag if flag != '' else None
+
+                product = Product(name, price, flag)
+                products.append(product.__dict__)
+
+            page += 1
+            browser.execute('goodsPageController.movePage({0})'.format(page))
 
         return products
 
@@ -147,7 +198,9 @@ class GS25(Brand):
 
             for row in rows:
                 name = row.select('a.st_name')[0].get_text().strip()
+
                 address = re.split(r"[,(]", row.select('a.st_address')[0].get_text().strip())[0]
+                address = address if address != '' else None
 
                 store = CStore(name, None, address)
                 print(store.__dict__)
@@ -158,16 +211,3 @@ class GS25(Brand):
             browser.execute('boardViewController.getDataList({0})'.format(page), 3)
 
         return stores
-
-
-class CStore:
-    def __init__(self, name, tel, address):
-        self.name = name
-        self.tel = tel
-        self.address = address
-
-
-class Product:
-    def __init__(self, name, price):
-        self.name = name
-        self.price = price
