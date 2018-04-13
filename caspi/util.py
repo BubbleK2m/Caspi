@@ -18,8 +18,8 @@ class HeadlessChrome(Chrome):
         options = ChromeOptions()
 
         # add optional arguments for headless
-        # options.add_argument('--headless')
-        # options.add_argument('--disable-gpu')
+        options.add_argument('--headless')
+        options.add_argument('--disable-gpu')
 
         # initialize chrome driver
         super(HeadlessChrome, self).__init__(chrome_options=options)
