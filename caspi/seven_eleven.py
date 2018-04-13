@@ -4,8 +4,8 @@ from caspi.util import HeadlessChrome, escape_unit_suffix
 from selenium.common.exceptions import NoSuchElementException
 from selenium.webdriver.support.ui import Select
 
-from pprint import pprint
 import time
+from pprint import pprint
 
 SITE_URL = 'http://www.7-eleven.co.kr'
 
