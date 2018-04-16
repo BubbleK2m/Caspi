@@ -135,7 +135,7 @@ def get_stores():
                 store = {
                     'name': row.select('span.name')[0].get_text().strip(),
                     'tel': row.select('span.tel')[0].get_text().strip() or None,
-                    'address': row.select('div.detail_info > address')[0].get_text().split(', ')[0].strip() or None
+                    'address': row.select('div.detail_info > address')[0].get_text().strip() or None
                 }
 
                 pprint(store)

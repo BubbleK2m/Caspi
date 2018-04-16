@@ -61,11 +61,14 @@ def get_youus_products(kind=""):
     return products
 
 
-def get_event_products(kind):
+def get_event_products(kind=""):
+    if not kind:
+        return get_event_products(ONE_PLUS_ONE) + get_event_products(TWO_PLUS_ONE)
+
     products = []
 
     with HeadlessChrome() as chrome:
-        chrome.get('{0}/products/{1}'.format(SITE_URL, EVENT_GOODS))
+        chrome.get(EVENT_GOODS)
         time.sleep(5)
 
         target_tab_item = chrome.find_element_by_id(kind)
@@ -118,9 +121,6 @@ def get_stores():
                     'name': row.select('a.st_name')[0].get_text().strip(),
                     'address': row.select('a.st_address')[0].get_text().strip() or None
                 }
-
-                if store['address']:
-                    store['address'] = re.split('[,(]', store['address'], maxsplit=2)[0]
 
                 pprint(store)
                 stores.append(store)
