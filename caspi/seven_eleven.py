@@ -10,7 +10,8 @@ from pprint import pprint
 SITE_URL = 'http://www.7-eleven.co.kr'
 
 # url for seven select (pb product) list
-SEVEN_SELECT_PRODUCTS = '{0}/product/7selectList.asp'.format(SITE_URL)
+SEVEN_SELECT = '7select'
+SEVEN_ELEVEN_DOSIRAK = 'bestdosirak'
 
 # url for present (event goods) list
 EVENT_PRODUCTS = '{0}/product/presentList.asp'.format(SITE_URL)
@@ -20,11 +21,14 @@ ONE_PLUS_ONE = 1
 TWO_PLUS_ONE = 2
 
 
-def get_pb_products():
+def get_pb_products(kind=""):
+    if not kind:
+        return get_pb_products(SEVEN_SELECT) + get_pb_products(SEVEN_ELEVEN_DOSIRAK)
+
     products = []
 
     with HeadlessChrome() as chrome:
-        chrome.get(SEVEN_SELECT_PRODUCTS)
+        chrome.get('{0}/product/{1}List.asp'.format(SITE_URL, kind))
 
         while True:
             time.sleep(5)
@@ -38,14 +42,11 @@ def get_pb_products():
 
         soup = Soup(chrome.page_source, 'html.parser')
 
-        for box in soup.select('div.pic_product'):
+        for box in soup.select('li > div.pic_product'):
             product = {
                 'name': box.select('div.name')[0].get_text().strip(),
-                'price': escape_unit_suffix(box.select('div.price')[0].get_text().strip()) or None
+                'price': int(escape_unit_suffix(box.select('div.price')[0].get_text().strip()))
             }
-
-            if product['price']:
-                product['price'] = int(product['price'])
 
             products.append(product)
 
@@ -73,7 +74,7 @@ def get_event_products(kind):
 
         soup = Soup(chrome.page_source, 'html.parser')
 
-        for box in soup.select('div.pic_product'):
+        for box in soup.select('li > div.pic_product'):
             product = {
                 'name': box.select('div.name')[0].get_text().strip(),
                 'price': int(escape_unit_suffix(box.select('div.price')[0].get_text().strip())),

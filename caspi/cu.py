@@ -20,7 +20,7 @@ import time
 SITE_URL = 'http://cu.bgfretail.com'
 
 PB_PRODUCT_LIST = '{0}/product/pb.do'.format(SITE_URL)
-PLUS_EVENT_PRODUCT_LIST = '{0}/evnet/plus.do'.format(SITE_URL)
+PLUS_EVENT_PRODUCT_LIST = '{0}/event/plus.do'.format(SITE_URL)
 STORE_LIST = '{0}/store/list.do'.format(SITE_URL)
 
 
