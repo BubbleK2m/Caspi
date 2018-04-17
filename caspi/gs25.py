@@ -61,9 +61,9 @@ def get_youus_products(kind=""):
     return products
 
 
-def get_event_products(kind=""):
+def get_plus_event_products(kind=""):
     if not kind:
-        return get_event_products(ONE_PLUS_ONE) + get_event_products(TWO_PLUS_ONE)
+        return get_plus_event_products(ONE_PLUS_ONE) + get_plus_event_products(TWO_PLUS_ONE)
 
     products = []
 
