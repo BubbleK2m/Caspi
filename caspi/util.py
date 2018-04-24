@@ -18,8 +18,11 @@ class HeadlessChrome(Chrome):
         options = ChromeOptions()
 
         # add optional arguments for headless
-        # options.add_argument('--headless')
-        # options.add_argument('--disable-gpu')
+        options.add_argument('--headless')
+        options.add_argument('--disable-gpu')
+
+        # set window size desktop fullscreen (1920 x 1080)
+        options.add_argument('--window-size=1920,1080')
 
         # initialize chrome driver
         super(HeadlessChrome, self).__init__(chrome_options=options)
@@ -59,3 +62,17 @@ def escape_unit_suffix(src):
 
     return re.sub(r'([,원])', '', src)
 
+
+def pick_address_string(src):
+    """
+        get address string from input string with regex
+
+        Args:
+            src (str) : text would you like get address
+
+        Return:
+            str: address what you picked
+    """
+
+    match = re.match(r'.*?[로(지하)?|길동리]\s?(\d+-*)+\s?((번*길)\s?(\d+-*)+)?', src)
+    return match.group() if match else None

@@ -1,10 +1,14 @@
 from bs4 import BeautifulSoup as Soup
 from pprint import pprint
 
-from caspi.util import HeadlessChrome
-from selenium.common.exceptions import NoSuchElementException
+from caspi.util import HeadlessChrome, escape_unit_suffix, pick_address_string
 
-import re
+from selenium.common.exceptions import NoSuchElementException, TimeoutException
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+
+
 import time
 
 """
@@ -37,30 +41,32 @@ def get_pb_products():
     with HeadlessChrome() as chrome:
         # move into PB products page
         chrome.get(PB_PRODUCT_LIST)
+        time.sleep(0.5)
 
         # click more product button until it's not shown
         while True:
             try:
-                # delay prevent latency in requests
-                time.sleep(5)
+                # explicit wait for find prod list btn
+                wait = WebDriverWait(chrome, 10)
+                wait.until(EC.visibility_of_element_located((By.CLASS_NAME, 'prodListBtn')))
 
-                # find and click button
-                prod_list_btn = chrome.find_element_by_class_name('prodListBtn')
-                prod_list_btn.click()
+                chrome.execute_script('nextPage(1)')
 
-            except NoSuchElementException:
+            except TimeoutException:
                 # cannot find button, we'll break
                 break
 
+        time.sleep(0.5)
         soup = Soup(chrome.page_source, 'html.parser')
 
         # get items from list. and parse data
         for item in soup.select('div.prodListWrap > ul > li'):
             product = {
                 'name': item.select('p.prodName')[0].get_text().strip(),
-                'price': int(re.sub(r'([,원])', '', item.select('p.prodPrice')[0].get_text().strip()))
+                'price': item.select('p.prodPrice')[0].get_text().strip()
             }
 
+            pprint(product)
             products.append(product)
 
     return products
@@ -79,28 +85,29 @@ def get_plus_event_products():
     with HeadlessChrome() as chrome:
         # move into PB products page
         chrome.get(PLUS_EVENT_PRODUCT_LIST)
+        time.sleep(0.5)
 
         # click more product button until it's not shown
         while True:
             try:
-                # delay prevent latency in requests
-                time.sleep(5)
+                # explicit wait for find prod list btn
+                wait = WebDriverWait(chrome, 10)
+                wait.until(EC.visibility_of_element_located((By.CLASS_NAME, 'prodListBtn')))
 
-                # find and click button
-                prod_list_btn = chrome.find_element_by_class_name('prodListBtn')
-                prod_list_btn.click()
+                chrome.execute_script('nextPage(1)')
 
             except NoSuchElementException:
                 # cannot find button, we'll break
                 break
 
         soup = Soup(chrome.page_source, 'html.parser')
+        time.sleep(0.5)
 
         # get items from list. and parse data
         for item in soup.select('div.prodListWrap > ul > li'):
             product = {
                 'name': item.select('p.prodName')[0].get_text().strip(),
-                'price': int(re.sub(r'([,원])', '', item.select('p.prodPrice')[0].get_text().strip())),
+                'price': int(escape_unit_suffix(item.select('p.prodPrice')[0].get_text().strip())),
                 'flag': item.select('li')[0].get_text().strip(),
             }
 
@@ -123,7 +130,7 @@ def get_stores():
         page = 1
 
         while True:
-            time.sleep(5)
+            time.sleep(1)
 
             soup = Soup(chrome.page_source, 'html.parser')
             store_rows = soup.select('div.detail_store tbody tr')
@@ -143,5 +150,8 @@ def get_stores():
 
             page += 1
             chrome.execute_script('newsPage({0})'.format(page))
+
+            wait = WebDriverWait(chrome, 10)
+            wait.until(EC.visibility_of_element_located((By.CSS_SELECTOR, 'div.detail_store tbody tr')))
 
     return stores

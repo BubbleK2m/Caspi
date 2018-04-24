@@ -1,8 +1,12 @@
 from bs4 import BeautifulSoup as Soup
-from caspi.util import HeadlessChrome
+from caspi.util import HeadlessChrome, escape_unit_suffix, pick_address_string
 
 import re
 import time
+
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.common.by import By
 
 from pprint import pprint
 
@@ -39,7 +43,7 @@ def get_youus_products(kind=""):
         page = 1
 
         while True:
-            time.sleep(5)
+            time.sleep(0.5)
 
             soup = Soup(chrome.page_source, 'html.parser')
             boxes = soup.select('div.prod_box')[3:]
@@ -50,13 +54,16 @@ def get_youus_products(kind=""):
             for box in boxes:
                 product = {
                     'name': box.select('p.tit')[0].get_text().strip(),
-                    'price': int(re.sub(r'([,원])', '', box.select('span.cost')[0].get_text().strip()))
+                    'price': box.select('span.cost')[0].get_text().strip()
                 }
 
                 products.append(product)
 
             page += 1
             chrome.execute_script('vagelistCommonFn.movePage({0})'.format(page))
+
+            wait = WebDriverWait(chrome, 10)
+            wait.until(EC.visibility_of_all_elements_located((By.CSS_SELECTOR, 'ul.prod_list > li')))
 
     return products
 
@@ -69,18 +76,23 @@ def get_plus_event_products(kind=""):
 
     with HeadlessChrome() as chrome:
         chrome.get(EVENT_GOODS)
-        time.sleep(5)
+        time.sleep(0.5)
 
-        target_tab_item = chrome.find_element_by_id(kind)
+        wait = WebDriverWait(chrome, 10)
+
+        target_tab_item = wait.until(EC.visibility_of_element_located((By.ID, kind)))
         target_tab_item.click()
 
         page = 1
 
         while True:
-            time.sleep(5)
-
+            time.sleep(0.5)
             soup = Soup(chrome.page_source, 'html.parser')
-            boxes = soup.select('div.prod_box')[3:]
+
+            prod_wraps = soup.select('div.tblwrap.mt50')
+            current_prod_wrap = [w for w in prod_wraps if w.attrs.get('style') != 'display: none'][0]
+
+            boxes = current_prod_wrap.select('div.prod_box')
 
             if len(boxes) == 0:
                 break
@@ -88,14 +100,18 @@ def get_plus_event_products(kind=""):
             for box in boxes:
                 product = {
                     'name': box.select('p.tit')[0].get_text().strip(),
-                    'price': int(re.sub(r'([,원])', '', box.select('span.cost')[0].get_text().strip())),
+                    'price': box.select('span.cost')[0].get_text().strip(),
                     'flag': box.select('p.flg01')[0].get_text().strip()
                 }
 
+                pprint(product)
                 products.append(product)
 
             page += 1
             chrome.execute_script('goodsPageController.movePage({0})'.format(page))
+
+            wait = WebDriverWait(chrome, 10)
+            wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, 'ul.prod_list > li')))
 
     return products
 
@@ -108,7 +124,7 @@ def get_stores():
         page = 1
 
         while True:
-            time.sleep(5)
+            time.sleep(0.5)
 
             soup = Soup(chrome.page_source, 'html.parser')
             rows = soup.select('tbody#storeInfoList > tr')
@@ -122,8 +138,10 @@ def get_stores():
                     'address': row.select('a.st_address')[0].get_text().strip() or None
                 }
 
-                pprint(store)
                 stores.append(store)
 
             page += 1
             chrome.execute_script('boardViewController.getDataList({0})'.format(page))
+
+            wait = WebDriverWait(chrome, 10)
+            wait.until(EC.visibility_of_all_elements_located((By.CSS_SELECTOR, 'tbody#storeInfoList > tr')))
