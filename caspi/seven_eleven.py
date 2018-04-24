@@ -1,7 +1,7 @@
 from bs4 import BeautifulSoup as Soup
-from caspi.util import HeadlessChrome, escape_unit_suffix, pick_address_string
+from caspi.util import HeadlessChrome
 
-from selenium.common.exceptions import NoSuchElementException, TimeoutException
+from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.common.by import By
 
 from selenium.webdriver.support import expected_conditions as EC
@@ -9,7 +9,7 @@ from selenium.webdriver.support.ui import Select, WebDriverWait
 
 
 import time
-from pprint import pprint
+
 
 """
     module for cu convenience store api
@@ -53,15 +53,15 @@ def get_pb_products(kind=""):
 
     with HeadlessChrome() as chrome:
         chrome.get('{0}/product/{1}List.asp'.format(SITE_URL, kind))
+        time.sleep(0.5)
 
         while True:
-            time.sleep(0.5)
-
             try:
-                wait = WebDriverWait(chrome, 10)
-
-                more_prod_btn = wait.until(EC.visibility_of_element_located((By.CLASS_NAME, 'btn_more')))
+                more_prod_btn = chrome.find_element_by_class_name('btn_more')
                 more_prod_btn.click()
+
+                wait = WebDriverWait(chrome, 10)
+                wait.until(EC.presence_of_element_located((By.CLASS_NAME, 'btn_more')))
 
             except TimeoutException:
                 break
@@ -75,7 +75,6 @@ def get_pb_products(kind=""):
                 'price': box.select('div.price')[0].get_text().strip()
             }
 
-            pprint(product)
             products.append(product)
 
     return products
@@ -90,19 +89,20 @@ def get_plus_event_products(kind=0):
     with HeadlessChrome() as chrome:
         chrome.get(EVENT_PRODUCT_LIST)
         chrome.execute_script('fncTab({0})'.format(kind))
+        time.sleep(0.5)
 
         while True:
-            time.sleep(0.5)
-
             try:
-                wait = WebDriverWait(chrome, 10)
-
-                more_prod_btn = wait.until(EC.visibility_of_element_located((By.CLASS_NAME, 'btn_more')))
+                more_prod_btn = chrome.find_element_by_class_name('btn_more')
                 more_prod_btn.click()
+
+                wait = WebDriverWait(chrome, 10)
+                wait.until(EC.presence_of_element_located((By.CLASS_NAME, 'btn_more')))
 
             except TimeoutException:
                 break
 
+        time.sleep(0.5)
         soup = Soup(chrome.page_source, 'html.parser')
 
         for box in soup.select('li > div.pic_product'):
@@ -112,7 +112,6 @@ def get_plus_event_products(kind=0):
                 'flag': box.find_previous("ul").select("li")[0].get_text().strip()
             }
 
-            pprint(product)
             products.append(product)
 
     return products

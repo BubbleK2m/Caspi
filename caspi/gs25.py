@@ -1,14 +1,11 @@
 from bs4 import BeautifulSoup as Soup
-from caspi.util import HeadlessChrome, escape_unit_suffix, pick_address_string
+from caspi.util import HeadlessChrome
 
-import re
 import time
 
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
-
-from pprint import pprint
 
 """
     Module for GS25 convenience store API
@@ -104,7 +101,6 @@ def get_plus_event_products(kind=""):
                     'flag': box.select('p.flg01')[0].get_text().strip()
                 }
 
-                pprint(product)
                 products.append(product)
 
             page += 1

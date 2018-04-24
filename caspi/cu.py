@@ -66,7 +66,6 @@ def get_pb_products():
                 'price': item.select('p.prodPrice')[0].get_text().strip()
             }
 
-            pprint(product)
             products.append(product)
 
     return products
@@ -96,7 +95,7 @@ def get_plus_event_products():
 
                 chrome.execute_script('nextPage(1)')
 
-            except NoSuchElementException:
+            except TimeoutException:
                 # cannot find button, we'll break
                 break
 
@@ -145,7 +144,6 @@ def get_stores():
                     'address': row.select('div.detail_info > address')[0].get_text().strip() or None
                 }
 
-                pprint(store)
                 stores.append(store)
 
             page += 1
