@@ -1,7 +1,7 @@
 from bs4 import BeautifulSoup as Soup
 from caspi.util import HeadlessChrome
 
-from selenium.common.exceptions import TimeoutException
+from selenium.common.exceptions import NoSuchElementException, TimeoutException
 from selenium.webdriver.common.by import By
 
 from selenium.webdriver.support import expected_conditions as EC
@@ -57,13 +57,13 @@ def get_pb_products(kind=""):
 
         while True:
             try:
-                more_prod_btn = chrome.find_element_by_class_name('btn_more')
+                more_prod_btn = chrome.find_element_by_css_selector('li.btn_more')
                 more_prod_btn.click()
 
                 wait = WebDriverWait(chrome, 10)
-                wait.until(EC.presence_of_element_located((By.CLASS_NAME, 'btn_more')))
+                wait.until(EC.staleness_of(more_prod_btn))
 
-            except TimeoutException:
+            except NoSuchElementException:
                 break
 
         time.sleep(0.5)
@@ -93,13 +93,13 @@ def get_plus_event_products(kind=0):
 
         while True:
             try:
-                more_prod_btn = chrome.find_element_by_class_name('btn_more')
+                more_prod_btn = chrome.find_element_by_css_selector('li.btn_more')
                 more_prod_btn.click()
 
                 wait = WebDriverWait(chrome, 10)
-                wait.until(EC.presence_of_element_located((By.CLASS_NAME, 'btn_more')))
+                wait.until(EC.staleness_of(more_prod_btn))
 
-            except TimeoutException:
+            except NoSuchElementException:
                 break
 
         time.sleep(0.5)

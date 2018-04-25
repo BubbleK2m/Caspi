@@ -1,7 +1,7 @@
 from bs4 import BeautifulSoup as Soup
 from pprint import pprint
 
-from caspi.util import HeadlessChrome, escape_unit_suffix, pick_address_string
+from caspi.util import HeadlessChrome
 
 from selenium.common.exceptions import NoSuchElementException, TimeoutException
 from selenium.webdriver.common.by import By
@@ -106,7 +106,7 @@ def get_plus_event_products():
         for item in soup.select('div.prodListWrap > ul > li'):
             product = {
                 'name': item.select('p.prodName')[0].get_text().strip(),
-                'price': int(escape_unit_suffix(item.select('p.prodPrice')[0].get_text().strip())),
+                'price': item.select('p.prodPrice')[0].get_text().strip(),
                 'flag': item.select('li')[0].get_text().strip(),
             }
 
