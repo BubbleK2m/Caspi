@@ -2,6 +2,7 @@ from bs4 import BeautifulSoup as Soup
 from caspi.util import HeadlessChrome
 
 import time
+from pprint import pprint
 
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
@@ -40,7 +41,8 @@ def get_youus_products(kind=""):
         page = 1
 
         while True:
-            time.sleep(0.5)
+            wait = WebDriverWait(chrome, 30)
+            wait.until(EC.visibility_of_all_elements_located((By.CSS_SELECTOR, 'ul.prod_list > li')))
 
             soup = Soup(chrome.page_source, 'html.parser')
             boxes = soup.select('div.prod_box')[3:]
@@ -51,16 +53,20 @@ def get_youus_products(kind=""):
             for box in boxes:
                 product = {
                     'name': box.select('p.tit')[0].get_text().strip(),
-                    'price': box.select('span.cost')[0].get_text().strip()
+                    'price': box.select('span.cost')[0].get_text().strip(),
+                    'image': box.select('p.img > img')
                 }
+
+                if product['image']:
+                    product['image'] = product['image'][0].attrs['src']
+
+                else:
+                    product['image'] = None
 
                 products.append(product)
 
             page += 1
             chrome.execute_script('vagelistCommonFn.movePage({0})'.format(page))
-
-            wait = WebDriverWait(chrome, 10)
-            wait.until(EC.visibility_of_all_elements_located((By.CSS_SELECTOR, 'ul.prod_list > li')))
 
     return products
 
@@ -73,9 +79,7 @@ def get_plus_event_products(kind=""):
 
     with HeadlessChrome() as chrome:
         chrome.get(EVENT_GOODS)
-        time.sleep(0.5)
-
-        wait = WebDriverWait(chrome, 10)
+        wait = WebDriverWait(chrome, 30)
 
         target_tab_item = wait.until(EC.visibility_of_element_located((By.ID, kind)))
         target_tab_item.click()
@@ -83,12 +87,13 @@ def get_plus_event_products(kind=""):
         page = 1
 
         while True:
-            time.sleep(0.5)
+            wait = WebDriverWait(chrome, 10)
+            wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, 'ul.prod_list > li')))
+
             soup = Soup(chrome.page_source, 'html.parser')
-
             prod_wraps = soup.select('div.tblwrap.mt50')
-            current_prod_wrap = [w for w in prod_wraps if w.attrs.get('style') != 'display: none'][0]
 
+            current_prod_wrap = [w for w in prod_wraps if w.attrs.get('style') != 'display: none'][0]
             boxes = current_prod_wrap.select('div.prod_box')
 
             if len(boxes) == 0:
@@ -98,7 +103,8 @@ def get_plus_event_products(kind=""):
                 product = {
                     'name': box.select('p.tit')[0].get_text().strip(),
                     'price': box.select('span.cost')[0].get_text().strip(),
-                    'flag': box.select('p.flg01')[0].get_text().strip()
+                    'flag': box.select('p.flg01')[0].get_text().strip(),
+                    'image': box.select('p.img > img')[0].attrs['src'].strip()
                 }
 
                 products.append(product)
@@ -106,10 +112,11 @@ def get_plus_event_products(kind=""):
             page += 1
             chrome.execute_script('goodsPageController.movePage({0})'.format(page))
 
-            wait = WebDriverWait(chrome, 10)
-            wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, 'ul.prod_list > li')))
-
     return products
+
+
+def get_products():
+    return get_youus_products() + get_plus_event_products()
 
 
 def get_stores():
@@ -120,7 +127,8 @@ def get_stores():
         page = 1
 
         while True:
-            time.sleep(0.5)
+            wait = WebDriverWait(chrome, 30)
+            wait.until(EC.visibility_of_all_elements_located((By.CSS_SELECTOR, 'tbody#storeInfoList > tr')))
 
             soup = Soup(chrome.page_source, 'html.parser')
             rows = soup.select('tbody#storeInfoList > tr')
@@ -139,5 +147,3 @@ def get_stores():
             page += 1
             chrome.execute_script('boardViewController.getDataList({0})'.format(page))
 
-            wait = WebDriverWait(chrome, 10)
-            wait.until(EC.visibility_of_all_elements_located((By.CSS_SELECTOR, 'tbody#storeInfoList > tr')))

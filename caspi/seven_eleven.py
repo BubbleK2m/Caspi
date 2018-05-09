@@ -7,7 +7,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import Select, WebDriverWait
 
-
+from pprint import pprint
 import time
 
 
@@ -72,7 +72,8 @@ def get_pb_products(kind=""):
         for box in soup.select('li > div.pic_product'):
             product = {
                 'name': box.select('div.name')[0].get_text().strip(),
-                'price': box.select('div.price')[0].get_text().strip()
+                'price': box.select('div.price')[0].get_text().strip(),
+                'image': SITE_URL + box.select('img')[0].attrs['src'].strip()
             }
 
             products.append(product)
@@ -99,7 +100,7 @@ def get_plus_event_products(kind=0):
                 wait = WebDriverWait(chrome, 10)
                 wait.until(EC.staleness_of(more_prod_btn))
 
-            except NoSuchElementException:
+            except NoSuchElementException | TimeoutException:
                 break
 
         time.sleep(0.5)
@@ -109,12 +110,17 @@ def get_plus_event_products(kind=0):
             product = {
                 'name': box.select('div.name')[0].get_text().strip(),
                 'price': box.select('div.price')[0].get_text().strip(),
-                'flag': box.find_previous("ul").select("li")[0].get_text().strip()
+                'flag': box.find_previous("ul").select("li")[0].get_text().strip(),
+                'image': SITE_URL + box.select('img')[0].attrs['src'].strip()
             }
 
             products.append(product)
 
     return products
+
+
+def get_products():
+    return get_pb_products()
 
 
 def get_stores():
@@ -127,7 +133,7 @@ def get_stores():
         wait = WebDriverWait(chrome, 10)
         open_store_list_btn = wait.until(EC.visibility_of_element_located((By.CLASS_NAME, 'store_open')))
         open_store_list_btn.click()
-        time.sleep(0.5)
+        time.sleep(5)
 
         city_name_selections = chrome.find_elements_by_css_selector('select#storeLaySido > option')
         city_names = [o.get_attribute('value') for o in city_name_selections][1:]

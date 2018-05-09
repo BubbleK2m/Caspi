@@ -63,7 +63,8 @@ def get_pb_products():
         for item in soup.select('div.prodListWrap > ul > li'):
             product = {
                 'name': item.select('p.prodName')[0].get_text().strip(),
-                'price': item.select('p.prodPrice')[0].get_text().strip()
+                'price': item.select('p.prodPrice')[0].get_text().strip(),
+                'image': item.select('div.photo > a > img')[0].attrs['src'].strip()
             }
 
             products.append(product)
@@ -108,11 +109,16 @@ def get_plus_event_products():
                 'name': item.select('p.prodName')[0].get_text().strip(),
                 'price': item.select('p.prodPrice')[0].get_text().strip(),
                 'flag': item.select('li')[0].get_text().strip(),
+                'image': item.select('div.photo > a > img')[0].attrs['src'].strip()
             }
 
             products.append(product)
 
     return products
+
+
+def get_products():
+    return get_pb_products() + get_plus_event_products()
 
 
 def get_stores():
@@ -129,7 +135,8 @@ def get_stores():
         page = 1
 
         while True:
-            time.sleep(1)
+            wait = WebDriverWait(chrome, 30)
+            wait.until(EC.visibility_of_all_elements_located((By.CSS_SELECTOR, 'div.detail_store tbody tr')))
 
             soup = Soup(chrome.page_source, 'html.parser')
             store_rows = soup.select('div.detail_store tbody tr')
@@ -144,12 +151,10 @@ def get_stores():
                     'address': row.select('div.detail_info > address')[0].get_text().strip() or None
                 }
 
+                pprint(store)
                 stores.append(store)
 
             page += 1
             chrome.execute_script('newsPage({0})'.format(page))
-
-            wait = WebDriverWait(chrome, 10)
-            wait.until(EC.visibility_of_element_located((By.CSS_SELECTOR, 'div.detail_store tbody tr')))
 
     return stores
