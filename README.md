@@ -1,2 +1,2 @@
-# conpy
-python convience store parser
+# caspi
+python cstore parser

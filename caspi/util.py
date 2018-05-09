@@ -47,32 +47,3 @@ class HeadlessChrome(Chrome):
 
         # close browser
         self.close()
-
-
-def escape_unit_suffix(src):
-    """
-        escape unit suffix like '~원' by regex
-
-        Args:
-            src (str) : text would you want to convert
-
-        Return:
-            str: text which escaped unit suffix
-    """
-
-    return re.sub(r'([,원])', '', src)
-
-
-def pick_address_string(src):
-    """
-        get address string from input string with regex
-
-        Args:
-            src (str) : text would you like get address
-
-        Return:
-            str: address what you picked
-    """
-
-    match = re.match(r'.*?[로(지하)?|길동리]\s?(\d+-*)+\s?((번*길)\s?(\d+-*)+)?', src)
-    return match.group() if match else None
