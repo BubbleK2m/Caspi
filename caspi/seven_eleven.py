@@ -1,162 +1,77 @@
 from bs4 import BeautifulSoup as Soup
-from caspi.util import HeadlessChrome
-
-from selenium.common.exceptions import NoSuchElementException, TimeoutException
-from selenium.webdriver.common.by import By
-
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.support.ui import Select, WebDriverWait
-
-from pprint import pprint
-import time
-
-
-"""
-    module for cu convenience store api
-    
-    Attribute:
-        SITE_URL (str): base url in Seven Eleven website
-        EVENT_PRODUCT_LIST (str): url to visit event product list page
-        
-        SEVEN_SELECT (str): url path args for call seven eleven dosirak
-        SEVEN_ELEVEN_DOSIRAK (str): url path args for call seven eleven dosirak 
-        
-        ONE_PLUS_ONE (int): args for call 1 + 1 event products from event product list page
-        TWO_PLUS_ONE (int): args for call 2 + 1 event products from event product list page
-"""
+import json
+import requests
 
 SITE_URL = 'http://www.7-eleven.co.kr'
+PRODUCT_ENDPOINT = SITE_URL + '/product'
+UTIL_ENDPOINT = SITE_URL + '/util'
 
-SEVEN_SELECT = '7select'
-SEVEN_ELEVEN_DOSIRAK = 'bestdosirak'
+PRODUCT_TYPES = {
+    'one_plus_one': 1,
+    'two_plus_one': 2,
+    '7_select': 5,
+}
 
-EVENT_PRODUCT_LIST = '{0}/product/presentList.asp'.format(SITE_URL)
-ONE_PLUS_ONE = 1
-TWO_PLUS_ONE = 2
 
+def get_products(kind=None):
+    if kind is None:
+        return get_products('7_select') + \
+               get_products('one_plus_one') + \
+               get_products('two_plus_one')
 
-def get_pb_products(kind=""):
-    """
-        Get PB products from seven eleven
-
-        Args:
-            kind(str): Kind about seven eleven PB Product (7 select, dosirak)
-
-        Return:
-            list: PB Product dict list
-    """
-
-    if not kind:
-        return get_pb_products(SEVEN_SELECT) + get_pb_products(SEVEN_ELEVEN_DOSIRAK)
+    elif isinstance(kind, str):
+        kind = PRODUCT_TYPES[kind]
 
     products = []
+    page = 1
 
-    with HeadlessChrome() as chrome:
-        chrome.get('{0}/product/{1}List.asp'.format(SITE_URL, kind))
-        time.sleep(0.5)
+    prev_resp = None
 
-        while True:
-            try:
-                more_prod_btn = chrome.find_element_by_css_selector('li.btn_more')
-                more_prod_btn.click()
+    while True:
+        cur_resp = requests.post(url=PRODUCT_ENDPOINT + '/listMoreAjax.asp',
+                                 data={'intPageSize': page * 10, 'pTab': kind})
 
-                wait = WebDriverWait(chrome, 10)
-                wait.until(EC.staleness_of(more_prod_btn))
+        if prev_resp and prev_resp.text == cur_resp.text:
+            break
 
-            except NoSuchElementException:
-                break
+        prev_resp = cur_resp
+        page += 1
 
-        time.sleep(0.5)
-        soup = Soup(chrome.page_source, 'html.parser')
+    soup = Soup(prev_resp.text, 'html.parser')
 
-        for box in soup.select('li > div.pic_product'):
-            product = {
-                'name': box.select('div.name')[0].get_text().strip(),
-                'price': box.select('div.price')[0].get_text().strip(),
-                'image': SITE_URL + box.select('img')[0].attrs['src'].strip()
-            }
+    for box in soup.select('div.pic_product'):
+        product = {
+            'name': box.select('div.name')[0].get_text().strip(),
+            'price': box.select('div.price')[0].get_text().strip(),
+            'image': SITE_URL + box.select('img')[0].attrs['src'].strip(),
+            'flag': box.find_previous("ul"),
+        }
 
-            products.append(product)
+        if product['flag']:
+            product['flag'] = product['flag'].select('li')[0].get_text().strip()
+
+        products.append(product)
 
     return products
 
 
-def get_plus_event_products(kind=0):
-    if not kind:
-        return get_plus_event_products(ONE_PLUS_ONE) + get_plus_event_products(TWO_PLUS_ONE)
-
-    products = []
-
-    with HeadlessChrome() as chrome:
-        chrome.get(EVENT_PRODUCT_LIST)
-        chrome.execute_script('fncTab({0})'.format(kind))
-        time.sleep(0.5)
-
-        while True:
-            try:
-                more_prod_btn = chrome.find_element_by_css_selector('li.btn_more')
-                more_prod_btn.click()
-
-                wait = WebDriverWait(chrome, 10)
-                wait.until(EC.staleness_of(more_prod_btn))
-
-            except NoSuchElementException | TimeoutException:
-                break
-
-        time.sleep(0.5)
-        soup = Soup(chrome.page_source, 'html.parser')
-
-        for box in soup.select('li > div.pic_product'):
-            product = {
-                'name': box.select('div.name')[0].get_text().strip(),
-                'price': box.select('div.price')[0].get_text().strip(),
-                'flag': box.find_previous("ul").select("li")[0].get_text().strip(),
-                'image': SITE_URL + box.select('img')[0].attrs['src'].strip()
-            }
-
-            products.append(product)
-
-    return products
-
-
-def get_products():
-    return get_pb_products()
-
-
-def get_stores():
+def get_stores(city):
     stores = []
 
-    with HeadlessChrome() as chrome:
-        chrome.get(SITE_URL)
-        time.sleep(0.5)
+    resp = requests.post(url=UTIL_ENDPOINT + '/storeLayerPop.asp',
+                         data={'storeLaySido': city, 'hiddentext': 'none'})
 
-        wait = WebDriverWait(chrome, 10)
-        open_store_list_btn = wait.until(EC.visibility_of_element_located((By.CLASS_NAME, 'store_open')))
-        open_store_list_btn.click()
-        time.sleep(5)
+    soup = Soup(resp.text, 'html.parser')
 
-        city_name_selections = chrome.find_elements_by_css_selector('select#storeLaySido > option')
-        city_names = [o.get_attribute('value') for o in city_name_selections][1:]
+    for item in soup.select('div.list_stroe.type02 li'):
+        spans = item.select('span')
 
-        for city_name in city_names:
-            city_name_selection = Select(chrome.find_element_by_id('storeLaySido'))
-            city_name_selection.select_by_value(city_name)
+        store = {
+            'name': spans[0].get_text().strip(),
+            'address': spans[1].get_text().strip() or None,
+            'tel': spans[2].get_text().strip() or None if len(spans) > 2 else None
+        }
 
-            time.sleep(1)
-            chrome.execute_script('$.Fn_store_search(1)')
-
-            time.sleep(5)
-            soup = Soup(chrome.page_source, 'html.parser')
-
-            for item in soup.select('div.list_stroe > ul > li'):
-                spans = item.select('span')
-
-                store = {
-                    'name': spans[0].get_text().strip(),
-                    'address': spans[1].get_text().strip() or None,
-                    'tel': spans[2].get_text().strip() or None if len(spans) > 2 else None
-                }
-
-                stores.append(store)
+        stores.append(store)
 
     return stores
