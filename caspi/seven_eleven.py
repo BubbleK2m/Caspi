@@ -47,8 +47,11 @@ def get_products(kind=None):
             'flag': box.find_previous("ul"),
         }
 
-        if product['flag']:
-            product['flag'] = product['flag'].select('li')[0].get_text().strip()
+        if kind in {1, 2}:
+            flag_list = box.find_previous("ul")
+
+            if flag_list:
+                product['flag'] = flag_list.select('li')[0].get_text().strip()
 
         products.append(product)
 
@@ -68,7 +71,7 @@ def get_stores(city):
 
         store = {
             'name': spans[0].get_text().strip(),
-            'address': spans[1].get_text().strip() or None,
+            'address': spans[1].get_text().strip().replace("\n", "") or None,
             'tel': spans[2].get_text().strip() or None if len(spans) > 2 else None
         }
 

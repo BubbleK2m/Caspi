@@ -1,149 +1,173 @@
 from bs4 import BeautifulSoup as Soup
-from caspi.util import HeadlessChrome
+from .util import snake_str_to_pascal_str
 
-import time
-from pprint import pprint
-
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.common.by import By
-
-"""
-    Module for GS25 convenience store API
-    
-    Attribute:
-        SITE_URL (str): base url in CU website
-        YOUUS_FRESH_FOOD (str): url to youus fresh foods page
-        YOUUS_DIFFERENT_SERVICES (str): url to youus different services page
-        STORE_LISTS (str): url to store lists page
-"""
+import json
+import re
+import requests
 
 SITE_URL = 'http://gs25.gsretail.com/gscvs/ko'
+PRODUCT_ENDPOINT = SITE_URL + '/products'
+STORE_ENDPOINT = SITE_URL + '/store-services'
 
-YOUUS_FRESH_FOODS = 'freshfood'
-YOOUS_DIFFRENT_SERVICES = 'different-service'
-
-EVENT_GOODS = "{0}/products/event-goods".format(SITE_URL)
-ONE_PLUS_ONE = "ONE_TO_ONE"
-TWO_PLUS_ONE = "TWO_TO_ONE"
-
-STORE_SERVICE = "{0}/store-services/locations".format(SITE_URL)
+EVENT_TYPES = {
+    'one_plus_one': 'ONE_TO_ONE',
+    'two_plus_one': 'TWO_TO_ONE'
+}
 
 
-def get_youus_products(kind=""):
-    if not kind:
-        return get_youus_products(YOUUS_FRESH_FOODS) + get_youus_products(YOOUS_DIFFRENT_SERVICES)
+def get_csrf_session():
+    # Load MainPage to Get CSRF Token and Cookies
+    resp = requests.get(url=SITE_URL + '/main')
+    soup = Soup(resp.text, 'html.parser')
 
-    products = []
+    # Get CSRF Token and Cookies from HTML and Set-Coookie Headers
+    csrf_token = soup.select('input[name="CSRFToken"]')[0].attrs['value'].strip()
+    csrf_cookie = resp.headers['Set-Cookie']
 
-    with HeadlessChrome() as chrome:
-        chrome.get('{0}/products/youus-{1}'.format(SITE_URL, kind))
-        page = 1
+    # Request for Register CSRF Session with CSRF Token and Cookies
+    requests.post(url=SITE_URL + '/main',
+                  data={'CSRFToken': csrf_token},
+                  headers={'Cookie': csrf_cookie})
 
-        while True:
-            wait = WebDriverWait(chrome, 30)
-            wait.until(EC.visibility_of_all_elements_located((By.CSS_SELECTOR, 'ul.prod_list > li')))
-
-            soup = Soup(chrome.page_source, 'html.parser')
-            boxes = soup.select('div.prod_box')[3:]
-
-            if len(boxes) == 0:
-                break
-
-            for box in boxes:
-                product = {
-                    'name': box.select('p.tit')[0].get_text().strip(),
-                    'price': box.select('span.cost')[0].get_text().strip(),
-                    'image': box.select('p.img > img')
-                }
-
-                if product['image']:
-                    product['image'] = product['image'][0].attrs['src']
-
-                else:
-                    product['image'] = None
-
-                products.append(product)
-
-            page += 1
-            chrome.execute_script('vagelistCommonFn.movePage({0})'.format(page))
-
-    return products
+    # Return CSRF Token and Cookies
+    return csrf_token, csrf_cookie
 
 
-def get_plus_event_products(kind=""):
-    if not kind:
-        return get_plus_event_products(ONE_PLUS_ONE) + get_plus_event_products(TWO_PLUS_ONE)
+def get_products(kind):
+    # Initialize Product List and Page Number
+    prods = []
+    page = 1
 
-    products = []
+    # Get CSRF Token and Cookies
+    csrf_token, csrf_cookie = get_csrf_session()
+    url = PRODUCT_ENDPOINT
 
-    with HeadlessChrome() as chrome:
-        chrome.get(EVENT_GOODS)
-        wait = WebDriverWait(chrome, 30)
+    # Set Default Search Data
+    data = {
+        'pageSize': 16,
+        'searchSort': 'searchALLSort',
+        'searchProduct': 'productALL',
+    }
 
-        target_tab_item = wait.until(EC.visibility_of_element_located((By.ID, kind)))
-        target_tab_item.click()
+    # If We'll Find Youus Products (Fresh Food, Different Service),
+    # Set URL and Search Data to Search Youus Products
+    if kind in {'fresh_food', 'different_service'}:
+        url = url + '/youus-freshfoodDetail-search'
+        data['searchSrvFoodCK'] = snake_str_to_pascal_str(kind) + 'Key'
 
-        page = 1
+    # If We'll Find Event Products (One Plus One, Two Plus One),
+    # Set URL and search data to search plus event products
+    elif kind in EVENT_TYPES.keys():
+        url = url + '/event-goods-search'
+        data['parameterList'] = EVENT_TYPES[kind]
 
-        while True:
-            wait = WebDriverWait(chrome, 10)
-            wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, 'ul.prod_list > li')))
+    # Set CSRF token and cookies
+    params = {'CSRFToken': csrf_token}
+    headers = {'Cookie': csrf_cookie}
 
-            soup = Soup(chrome.page_source, 'html.parser')
-            prod_wraps = soup.select('div.tblwrap.mt50')
+    while True:
+        # Set page number and send product search request
+        data['pageNum'] = page
+        resp = requests.post(url, data=data, params=params, headers=headers)
 
-            current_prod_wrap = [w for w in prod_wraps if w.attrs.get('style') != 'display: none'][0]
-            boxes = current_prod_wrap.select('div.prod_box')
+        # Get unicode escaped JSON objects from response
+        resp_text = resp.text.replace('\\"', '"').replace('\\\\', '\\')
 
-            if len(boxes) == 0:
-                break
+        # We'll remove double quote around response
+        resp_json = json.loads(resp_text[1:-1])
 
-            for box in boxes:
-                product = {
-                    'name': box.select('p.tit')[0].get_text().strip(),
-                    'price': box.select('span.cost')[0].get_text().strip(),
-                    'flag': box.select('p.flg01')[0].get_text().strip(),
-                    'image': box.select('p.img > img')[0].attrs['src'].strip()
-                }
+        # Get Products from Response JSON
+        items = resp_json.get('SubPageListData') or resp_json.get('results')
 
-                products.append(product)
+        # We'll Stop the Loop if We Cannot Get Products
+        if not items:
+            break
 
-            page += 1
-            chrome.execute_script('goodsPageController.movePage({0})'.format(page))
+        items = [i for i in items if i['goodsStatNm'] == '정상']
 
-    return products
+        for item in items:
+            # Initialize product dict from JSON object
+            prod = {
+                'name': item['goodsNm'],
+                'price': int(item['price']),
+                'image': item['attFileNm'],
+                'flag': item.get('eventTypeNm')
+            }
+
+            # Append product to products list
+            prods.append(prod)
+
+        # Increase page number
+        page += 1
+
+    # Finally, we'll return products list
+    return prods
 
 
-def get_products():
-    return get_youus_products() + get_plus_event_products()
-
-
-def get_stores():
+def get_stores(city):
+    # Initialize stores list and page number
     stores = []
+    page = 1
 
-    with HeadlessChrome() as chrome:
-        chrome.get(STORE_SERVICE)
-        page = 1
+    # Get CSRF token and cookies and
+    # Set URL to search store list
+    csrf_token, csrf_cookie = get_csrf_session()
+    url = STORE_ENDPOINT + '/locationList'
 
-        while True:
-            wait = WebDriverWait(chrome, 30)
-            wait.until(EC.visibility_of_all_elements_located((By.CSS_SELECTOR, 'tbody#storeInfoList > tr')))
+    # Set CSRF token and cookies
+    params = {'CSRFToken': csrf_token}
+    headers = {'Cookie': csrf_cookie}
 
-            soup = Soup(chrome.page_source, 'html.parser')
-            rows = soup.select('tbody#storeInfoList > tr')
+    # Set default search data
+    data = {
+        'pageSize': 5,
+        'searchSido': city, 'searchShopName': '',
+        'searchType': '', 'searchTypeService': 0,
+        'searchTypeLotto': 0, 'searchTypeToto': 0,
+        'searchTypeCoffee': 0, 'searchTypeBakery': 0,
+        'searchTypeInstant': 0, 'searchTypeDrug': 0,
+        'searchTypeSelf25': 0, 'searchTypePost': 0,
+        'searchTypeATM': 0, 'searchTypeWithdrawal': 0,
+        'searchTypeTaxrefund': 0, 'searchTypeGelasoft': 0,
+    }
 
-            if rows[0].get_text().strip() == '조회 조건에 맞는 매장이 없습니다.':
-                break
+    while True:
+        # Set page number and send store search request
+        data['pageNum'] = page
+        resp = requests.post(url=url, data=data, params=params, headers=headers)
 
-            for row in rows:
-                store = {
-                    'name': row.select('a.st_name')[0].get_text().strip(),
-                    'address': row.select('a.st_address')[0].get_text().strip() or None
-                }
+        # Get escaped JSON objects from response
+        resp_text = resp.text.replace('\\', '')
+        resp_json = json.loads(resp_text[1:-1])
 
-                stores.append(store)
+        # Get stores from response JSON
+        items = resp_json['results']
 
-            page += 1
-            chrome.execute_script('boardViewController.getDataList({0})'.format(page))
+        # We'll Stop loop if we cannot get products
+        if not items:
+            break
+
+        for item in items:
+            # Initialize store dict from JSON object
+            store = {
+                'name': item['shopName'],
+                'address': item['address'] or None,
+            }
+
+            # Append store to stores list
+            stores.append(store)
+
+        # Increase page number
+        page += 1
+
+    # Finally, we'll return stores list
+    return stores
+
+
+
+
+
+
+
+
 

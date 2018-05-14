@@ -12,7 +12,8 @@ EVENT_ENDPOINT = SITE_URL + '/event'
 
 def get_products(kind=None):
     if kind is None:
-        return get_products('pb') + get_products('plus')
+        return get_products('pb') + \
+               get_products('plus')
 
     url = '/' + kind + 'Ajax.do'
     data = {}
@@ -49,10 +50,11 @@ def get_products(kind=None):
                 'image': item.select('img')[0].attrs['src'].strip(),
             }
 
-            flag_items = item.select('li')
+            if kind == 'plus':
+                flag_items = item.select('li')
 
-            if flag_items and flag_items[0].get_text():
-                prod['flag'] = flag_items[0].get_text().strip()
+                if flag_items and flag_items[0].get_text():
+                    prod['flag'] = flag_items[0].get_text().strip()
 
             prods.append(prod)
 
@@ -65,22 +67,23 @@ def get_stores(city):
     stores = []
     page = 1
 
+    url = STORE_ENDPOINT + '/list_Ajax.do'
+
+    data = {
+        'jumpoSido': city,
+        'jumpoLotto': '',
+        'jumpoToto': '',
+        'jumpoCash': '',
+        'jumpoHour': '',
+        'jumpoCafe': '',
+        'jumpoDelivery': '',
+        'jumpoBakery': '',
+        'jumpoFry': '',
+    }
+
     while True:
-        resp = requests.post(
-            url=STORE_ENDPOINT + '/list_Ajax.do',
-            data={
-                'pageIndex': page,
-                'jumpoSido': city,
-                'jumpoLotto': '',
-                'jumpoToto': '',
-                'jumpoCash': '',
-                'jumpoHour': '',
-                'jumpoCafe': '',
-                'jumpoDelivery': '',
-                'jumpoBakery': '',
-                'jumpoFry': '',
-            },
-        )
+        data['pageIndex'] = page
+        resp = requests.post(url=url, data=data)
 
         soup = Soup(resp.text, 'html.parser')
         rows = soup.select('div.detail_store tbody tr')
