@@ -2,7 +2,6 @@ from bs4 import BeautifulSoup as Soup
 from .util import snake_str_to_pascal_str
 
 import json
-import re
 import requests
 
 SITE_URL = 'http://gs25.gsretail.com/gscvs/ko'
@@ -33,7 +32,7 @@ def get_csrf_session():
     return csrf_token, csrf_cookie
 
 
-def get_products(kind):
+def get_products(kind=None):
     # Initialize Product List and Page Number
     prods = []
     page = 1
@@ -56,12 +55,12 @@ def get_products(kind):
         data['searchSrvFoodCK'] = snake_str_to_pascal_str(kind) + 'Key'
 
     # If We'll Find Event Products (One Plus One, Two Plus One),
-    # Set URL and search data to search plus event products
+    # Set URL and Search Data to Search Plus Event Products
     elif kind in EVENT_TYPES.keys():
         url = url + '/event-goods-search'
         data['parameterList'] = EVENT_TYPES[kind]
 
-    # Set CSRF token and cookies
+    # Set CSRF Token and Cookies
     params = {'CSRFToken': csrf_token}
     headers = {'Cookie': csrf_cookie}
 

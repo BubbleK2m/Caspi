@@ -1,5 +1,6 @@
 from bs4 import BeautifulSoup as Soup
-import json
+from caspi.util import escape_unit_suffix
+
 import requests
 
 SITE_URL = 'http://www.7-eleven.co.kr'
@@ -14,22 +15,20 @@ PRODUCT_TYPES = {
 
 
 def get_products(kind=None):
-    if kind is None:
-        return get_products('7_select') + \
-               get_products('one_plus_one') + \
-               get_products('two_plus_one')
-
-    elif isinstance(kind, str):
+    if isinstance(kind, str):
         kind = PRODUCT_TYPES[kind]
 
     products = []
     page = 1
 
+    url = PRODUCT_ENDPOINT + '/listMoreAjax.asp'
+    data = {'pTab': kind}
+
     prev_resp = None
 
     while True:
-        cur_resp = requests.post(url=PRODUCT_ENDPOINT + '/listMoreAjax.asp',
-                                 data={'intPageSize': page * 10, 'pTab': kind})
+        data['intPageSize'] = page * 10
+        cur_resp = requests.post(url=url, data=data)
 
         if prev_resp and prev_resp.text == cur_resp.text:
             break
@@ -42,9 +41,8 @@ def get_products(kind=None):
     for box in soup.select('div.pic_product'):
         product = {
             'name': box.select('div.name')[0].get_text().strip(),
-            'price': box.select('div.price')[0].get_text().strip(),
+            'price': escape_unit_suffix(box.select('div.price')[0].get_text().strip()),
             'image': SITE_URL + box.select('img')[0].attrs['src'].strip(),
-            'flag': box.find_previous("ul"),
         }
 
         if kind in {1, 2}:
@@ -61,9 +59,14 @@ def get_products(kind=None):
 def get_stores(city):
     stores = []
 
-    resp = requests.post(url=UTIL_ENDPOINT + '/storeLayerPop.asp',
-                         data={'storeLaySido': city, 'hiddentext': 'none'})
+    url = UTIL_ENDPOINT + '/storeLayerPop.asp'
 
+    data = {
+        'storeLaySido': city,
+        'hiddenText': 'none'
+    }
+
+    resp = requests.post(url=url, data=data)
     soup = Soup(resp.text, 'html.parser')
 
     for item in soup.select('div.list_stroe.type02 li'):

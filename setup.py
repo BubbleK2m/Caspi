@@ -1,7 +1,7 @@
 from setuptools import setup
 
-setup(name='cstore-api',
-      version='0.3',
+setup(name='caspi',
+      version='0.1',
       url='https://github.com/DSMdongly/Caspi',
       license='MIT',
       author='Toygrammer',

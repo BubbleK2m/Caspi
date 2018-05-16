@@ -9,4 +9,4 @@
 
 # pypi packaging
 /dist/
-/cstore_api.egg-info/
+/caspi.egg-info/

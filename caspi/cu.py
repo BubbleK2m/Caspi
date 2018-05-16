@@ -1,6 +1,5 @@
 from bs4 import BeautifulSoup as Soup
-
-import json
+from .util import escape_unit_suffix
 import re
 import requests
 
@@ -11,10 +10,6 @@ EVENT_ENDPOINT = SITE_URL + '/event'
 
 
 def get_products(kind=None):
-    if kind is None:
-        return get_products('pb') + \
-               get_products('plus')
-
     url = '/' + kind + 'Ajax.do'
     data = {}
 
@@ -46,7 +41,7 @@ def get_products(kind=None):
         for item in items:
             prod = {
                 'name': item.select('.prodName')[0].get_text().strip(),
-                'price': item.select('.prodPrice')[0].get_text().strip(),
+                'price': escape_unit_suffix(item.select('.prodPrice')[0].get_text().strip()),
                 'image': item.select('img')[0].attrs['src'].strip(),
             }
 
